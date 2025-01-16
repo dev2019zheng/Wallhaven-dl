@@ -1,3 +1,14 @@
+########################################################
+#        Program to Download Wallpapers from           #
+#                  alpha.wallhaven.cc                  #
+#                                                      #
+#                 Author - Saurabh Bhan                #
+#                                                      #
+#                  Dated- 26 June 2016                 #
+#                 Update - 11 June 2019                #
+#         Update by dev2019zheng - 16 Jan 2025         #
+########################################################
+
 import os
 import requests
 import urllib.parse
@@ -8,7 +19,7 @@ FOLDER_NAME = 'Wallpapers'
 API_KEY = "ryYyavZRvlFq0r2eHo88fGu9CDhEZCIn"
 
 DOWNLOAD_URL = ""
-
+# see https://wallhaven.cc/help/api for more information
 BASE_API_URL = f"https://wallhaven.cc/api/v1/search?apikey={API_KEY}"
 COOKIES = dict()
 
