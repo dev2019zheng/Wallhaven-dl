@@ -1,55 +1,50 @@
-########################################################
-#        Program to Download Wallpapers from           #
-#                  alpha.wallhaven.cc                  #
-#                                                      #
-#                 Author - Saurabh Bhan                #
-#                                                      #
-#                  Dated- 26 June 2016                 #
-#                 Update - 11 June 2019                #
-########################################################
-
 import os
-import getpass
-import re
 import requests
-import tqdm
-import time
-import urllib
+import urllib.parse
 import json
 
-folderName = 'toplist240'
+# Constants
+FOLDER_NAME = 'Wallpapers'
+API_KEY = "ryYyavZRvlFq0r2eHo88fGu9CDhEZCIn"
 
-# 创建名为 'Wallhaven' 的目录，如果已存在则不报错
-os.makedirs(folderName, exist_ok=True)
-BASEURL=""
-cookies=dict()
+DOWNLOAD_URL = ""
 
-global APIKEY
-APIKEY = "ryYyavZRvlFq0r2eHo88fGu9CDhEZCIn"
+BASE_API_URL = f"https://wallhaven.cc/api/v1/search?apikey={API_KEY}"
+COOKIES = dict()
 
-def category():
-    global BASEURL
+# Create directory if it doesn't exist
+os.makedirs(FOLDER_NAME, exist_ok=True)
+def get_category_tag():
+    categories = {
+        'all': '111', 'anime': '010', 'general': '100', 'people': '001',
+        'ga': '110', 'gp': '101'
+    }
+
     print('''
     ****************************************************************
                             Category Codes
-
     all     - Every wallpaper.
     general - For 'general' wallpapers only.
     anime   - For 'Anime' Wallpapers only.
-    people  - For 'people' wallapapers only.
-    ga      - For 'General' and 'Anime' wallapapers only.
+    people  - For 'people' wallpapers only.
+    ga      - For 'General' and 'Anime' wallpapers only.
     gp      - For 'General' and 'People' wallpapers only.
     ****************************************************************
     ''')
-    # 输入类别代码
-    ccode = input('Enter Category: ').lower()
-    ctags = {'all':'111', 'anime':'010', 'general':'100', 'people':'001', 'ga':'110', 'gp':'101' }
-    ctag = ctags[ccode]
+    category_code = input('Enter Category: ').lower()
+    category_tag = categories.get(category_code, '111')
+    
+    return category_tag
 
+def get_purity_tag():
+    
+    purities = {
+        'sfw': '100', 'sketchy': '010', 'nsfw': '001',
+        'ws': '110', 'wn': '101', 'sn': '011', 'all': '111'
+    }
     print('''
     ****************************************************************
                             Purity Codes
-
     sfw     - For 'Safe For Work'
     sketchy - For 'Sketchy'
     nsfw    - For 'Not Safe For Work'
@@ -59,89 +54,94 @@ def category():
     all     - For 'SFW', 'Sketchy' and 'NSFW'
     ****************************************************************
     ''')
-    # 输入纯度代码
-    pcode = input('Enter Purity: ')
-    ptags = {'sfw':'100', 'sketchy':'010', 'nsfw':'001', 'ws':'110', 'wn':'101', 'sn':'011', 'all':'111'}
-    ptag = ptags[pcode]
+    purity_code = input('Enter Purity: ').lower()
+    purity_tag = purities.get(purity_code, '100')
 
-    # 构建 API 请求的基础 URL
-    BASEURL = 'https://wallhaven.cc/api/v1/search?apikey=' + APIKEY + "&categories=" +\
-        ctag + '&purity=' + ptag + '&page='
+    return purity_tag
 
-def latest():
-    global BASEURL
-    print('Downloading latest')
-    topListRange = '1M'
-    # 构建下载最新壁纸的 API 请求 URL
-    BASEURL = 'https://wallhaven.cc/api/v1/search?apikey=' + APIKEY + '&topRange=' +\
-    topListRange + '&sorting=toplist&page='
+def get_top_range():
+    valid_ranges = ['1d', '3d', '1w', '1M', '3M', '6M', '1y']
+    topRange = input('Enter the range for toplist (1d, 3d, 1w, 1M, 3M, 6M, 1y): ')
+    
+    while topRange not in valid_ranges:
+        print('Invalid range. Please enter a valid range.')
+        topRange = input('Enter the range for toplist (1d, 3d, 1w, 1M, 3M, 6M, 1y): ')
+    
+    return topRange
 
-def search():
-    global BASEURL
+def get_category_url():
+    category_tag = get_category_tag()
+    purity_tag = get_purity_tag()
+
+    return f'{BASE_API_URL}&categories={category_tag}&purity={purity_tag}&page='
+
+def get_latest_url():
+    top_range = get_top_range()
+    return f'{BASE_API_URL}&topRange={top_range}&sorting=toplist&page='
+
+def get_search_url():
     query = input('Enter search query: ')
-    # 构建搜索壁纸的 API 请求 URL
-    BASEURL = 'https://wallhaven.cc/api/v1/search?apikey=' + APIKEY + '&q=' + \
-        urllib.parse.quote_plus(query) + '&page='
+    return f'{BASE_API_URL}&q={urllib.parse.quote_plus(query)}&page='
 
-def toplist():
-    global BASEURL
-    print('Downloading toplist')
-    # 构建下载排行榜壁纸的 API 请求 URL
-    BASEURL = 'https://wallhaven.cc/api/v1/search?apikey=' + APIKEY + '&categories=111&purity=100&topRange=3M&sorting=toplist&order=desc&ai_art_filter=1&page='
+def get_toplist_url():
+    category_tag = get_category_tag()
+    top_range = get_top_range()
+    purity_tag = get_purity_tag()
+    return f'{BASE_API_URL}&categories={category_tag}&purity={purity_tag}&topRange={top_range}&sorting=toplist&order=desc&page='
 
-def downloadPage(pageId, totalImage):
-    url = BASEURL + str(pageId)
-    urlreq = requests.get(url, cookies=cookies)
-    pagesImages = json.loads(urlreq.content)
-    pageData = pagesImages["data"]
+def download_page(page_id, total_images):
+    url = DOWNLOAD_URL + str(page_id)
+    print(f"Downloading url: {url}")
+    response = requests.get(url, cookies=COOKIES)
+    page_data = response.json().get("data", [])
 
-    for i in range(len(pageData)):
-        currentImage = (((pageId - 1) * 24) + (i + 1))
+    for i, image_data in enumerate(page_data):
+        current_image = ((page_id - 1) * 24) + (i + 1)
+        image_url = image_data["path"]
+        filename = os.path.basename(image_url)
+        file_path = os.path.join(FOLDER_NAME, filename)
 
-        url = pageData[i]["path"]
-        
-        filename = os.path.basename(url)
-        osPath = os.path.join(folderName, filename)
-        if not os.path.exists(osPath):
-            imgreq = requests.get(url, cookies=cookies)
-            if imgreq.status_code == 200:
-                print("Downloading : %s - %s / %s" % (filename, currentImage , totalImage))
-                with open(osPath, 'ab') as imageFile:
-                    for chunk in imgreq.iter_content(1024):
-                        imageFile.write(chunk)
-            elif (imgreq.status_code != 403 and imgreq.status_code != 404):
-                print("Unable to download %s - %s / %s" % (filename, currentImage , totalImage))
+        if not os.path.exists(file_path):
+            img_response = requests.get(image_url, cookies=COOKIES)
+            if img_response.status_code == 200:
+                print(f"Downloading: {filename} - {current_image} / {total_images}")
+                with open(file_path, 'wb') as image_file:
+                    for chunk in img_response.iter_content(1024):
+                        image_file.write(chunk)
+            else:
+                print(f"Unable to download {filename} - {current_image} / {total_images}")
         else:
-            print("%s already exist - %s / %s" % (filename, currentImage , totalImage))
+            print(f"{filename} already exists - {current_image} / {total_images}")
 
 def main():
-    Choice = input('''Choose how you want to download the image:
+    global DOWNLOAD_URL
 
+    choice = input('''Choose how you want to download the image:
     Enter "category" for downloading wallpapers from specified categories
     Enter "latest" for downloading latest wallpapers
     Enter "toplist" for downloading top list wallpapers
     Enter "search" for downloading wallpapers from search
-
     Enter choice: ''').lower()
-    while Choice not in ['category', 'latest', 'search', 'toplist']:
-        if Choice != None:
-            print('You entered an incorrect value.')
-        choice = input('Enter choice: ')
 
-    if Choice == 'category':
-        category()
-    elif Choice == 'latest':
-        latest()
-    elif Choice == 'toplist':
-        toplist()
-    elif Choice == 'search':
-        search()
+    while choice not in ['category', 'latest', 'search', 'toplist']:
+        print('You entered an incorrect value.')
+        choice = input('Enter choice: ').lower()
 
-    pgid = int(input('How Many pages you want to Download: '))
-    totalImageToDownload = str(24 * pgid)
-    print('Number of Wallpapers to Download: ' + totalImageToDownload)
-    for page_index in range(1, pgid + 1):
-        downloadPage(page_index, totalImageToDownload)
+    if choice == 'category':
+        DOWNLOAD_URL = get_category_url()
+    elif choice == 'latest':
+        DOWNLOAD_URL = get_latest_url()
+    elif choice == 'toplist':
+        DOWNLOAD_URL = get_toplist_url()
+    elif choice == 'search':
+        DOWNLOAD_URL = get_search_url()
+
+    pages_to_download = int(input('How many pages do you want to download: '))
+    total_images_to_download = 24 * pages_to_download
+    print(f'Number of Wallpapers to Download: {total_images_to_download}')
+
+    for page_index in range(1, pages_to_download + 1):
+        download_page(page_index, total_images_to_download)
 
 if __name__ == '__main__':
     main()
