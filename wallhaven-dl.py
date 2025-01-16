@@ -17,12 +17,15 @@ import time
 import urllib
 import json
 
-os.makedirs('Wallhaven', exist_ok=True)
+folderName = 'toplist240'
+
+# 创建名为 'Wallhaven' 的目录，如果已存在则不报错
+os.makedirs(folderName, exist_ok=True)
 BASEURL=""
 cookies=dict()
 
 global APIKEY
-APIKEY = "EnterYourAPIKeyHere"
+APIKEY = "ryYyavZRvlFq0r2eHo88fGu9CDhEZCIn"
 
 def category():
     global BASEURL
@@ -38,6 +41,7 @@ def category():
     gp      - For 'General' and 'People' wallpapers only.
     ****************************************************************
     ''')
+    # 输入类别代码
     ccode = input('Enter Category: ').lower()
     ctags = {'all':'111', 'anime':'010', 'general':'100', 'people':'001', 'ga':'110', 'gp':'101' }
     ctag = ctags[ccode]
@@ -55,10 +59,12 @@ def category():
     all     - For 'SFW', 'Sketchy' and 'NSFW'
     ****************************************************************
     ''')
+    # 输入纯度代码
     pcode = input('Enter Purity: ')
     ptags = {'sfw':'100', 'sketchy':'010', 'nsfw':'001', 'ws':'110', 'wn':'101', 'sn':'011', 'all':'111'}
     ptag = ptags[pcode]
 
+    # 构建 API 请求的基础 URL
     BASEURL = 'https://wallhaven.cc/api/v1/search?apikey=' + APIKEY + "&categories=" +\
         ctag + '&purity=' + ptag + '&page='
 
@@ -66,19 +72,27 @@ def latest():
     global BASEURL
     print('Downloading latest')
     topListRange = '1M'
+    # 构建下载最新壁纸的 API 请求 URL
     BASEURL = 'https://wallhaven.cc/api/v1/search?apikey=' + APIKEY + '&topRange=' +\
     topListRange + '&sorting=toplist&page='
 
 def search():
     global BASEURL
     query = input('Enter search query: ')
+    # 构建搜索壁纸的 API 请求 URL
     BASEURL = 'https://wallhaven.cc/api/v1/search?apikey=' + APIKEY + '&q=' + \
         urllib.parse.quote_plus(query) + '&page='
+
+def toplist():
+    global BASEURL
+    print('Downloading toplist')
+    # 构建下载排行榜壁纸的 API 请求 URL
+    BASEURL = 'https://wallhaven.cc/api/v1/search?apikey=' + APIKEY + '&categories=111&purity=100&topRange=3M&sorting=toplist&order=desc&ai_art_filter=1&page='
 
 def downloadPage(pageId, totalImage):
     url = BASEURL + str(pageId)
     urlreq = requests.get(url, cookies=cookies)
-    pagesImages = json.loads(urlreq.content);
+    pagesImages = json.loads(urlreq.content)
     pageData = pagesImages["data"]
 
     for i in range(len(pageData)):
@@ -87,7 +101,7 @@ def downloadPage(pageId, totalImage):
         url = pageData[i]["path"]
         
         filename = os.path.basename(url)
-        osPath = os.path.join('Wallhaven', filename)
+        osPath = os.path.join(folderName, filename)
         if not os.path.exists(osPath):
             imgreq = requests.get(url, cookies=cookies)
             if imgreq.status_code == 200:
@@ -105,10 +119,11 @@ def main():
 
     Enter "category" for downloading wallpapers from specified categories
     Enter "latest" for downloading latest wallpapers
+    Enter "toplist" for downloading top list wallpapers
     Enter "search" for downloading wallpapers from search
 
     Enter choice: ''').lower()
-    while Choice not in ['category', 'latest', 'search']:
+    while Choice not in ['category', 'latest', 'search', 'toplist']:
         if Choice != None:
             print('You entered an incorrect value.')
         choice = input('Enter choice: ')
@@ -117,14 +132,16 @@ def main():
         category()
     elif Choice == 'latest':
         latest()
+    elif Choice == 'toplist':
+        toplist()
     elif Choice == 'search':
         search()
 
     pgid = int(input('How Many pages you want to Download: '))
     totalImageToDownload = str(24 * pgid)
     print('Number of Wallpapers to Download: ' + totalImageToDownload)
-    for j in range(1, pgid + 1):
-        downloadPage(j, totalImageToDownload)
+    for page_index in range(1, pgid + 1):
+        downloadPage(page_index, totalImageToDownload)
 
 if __name__ == '__main__':
     main()
